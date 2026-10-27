@@ -1,1 +1,185 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d1b">
+<title>ساعت دیجیتال پیشرفته</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;min-height:100vh;display:flex;align-items:center;
+ justify-content:center;padding:18px;
+ background:radial-gradient(ellipse at top,#17264b,#080d1b 70%);
+ color:#eaf4ff;font-family:Tahoma,Arial,sans-serif;
+ transition:.3s
+}
+.app{width:100%;max-width:520px;text-align:center}
+.brand{font-size:14px;letter-spacing:2px;color:var(--accent)}
+.clock-card{
+ padding:30px 12px;border:1px solid var(--accent);
+ border-radius:28px;background:#ffffff08;
+ box-shadow:0 0 35px #0005,inset 0 0 25px #ffffff05
+}
+.time{
+ direction:ltr;white-space:nowrap;font-size:clamp(38px,11vw,76px);
+ font-weight:bold;color:var(--accent);
+ text-shadow:0 0 20px var(--glow);font-variant-numeric:tabular-nums
+}
+.date{margin-top:18px;font-size:16px;line-height:2;color:#d4deef}
+.status{font-size:12px;color:#9eacc5;margin-top:12px}
+.panel{
+ margin-top:18px;padding:18px;border-radius:20px;
+ background:#ffffff0b;border:1px solid #ffffff15;text-align:right
+}
+label{display:block;margin:13px 0 8px;font-size:13px;color:#dce6f7}
+select,button{
+ font-family:inherit;border-radius:12px;padding:12px;
+ border:1px solid #ffffff25;background:#16213a;color:white;
+ font-size:13px
+}
+select{width:100%}
+button{cursor:pointer}
+button:active{transform:scale(.97)}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.buttons button{background:var(--accent);color:#08101c;border:0;font-weight:bold}
+.themes{display:flex;gap:12px;justify-content:center;margin:14px 0}
+.swatch{width:32px;height:32px;border-radius:50%;border:2px solid #ffffff70;cursor:pointer}
+input[type=range]{width:100%;accent-color:var(--accent)}
+footer{font-size:11px;color:#8593ad;margin-top:20px;line-height:2}
+body.light{background:linear-gradient(135deg,#e8eef8,#c8d7ed);color:#15213a}
+body.light .clock-card,body.light .panel{background:#ffffffa8;border-color:#b4c5df}
+body.light .date,body.light label{color:#263957}
+body.light select{background:#fff;color:#15213a}
+</style>
+</head>
+<body style="--accent:#42e8ff;--glow:#42e8ff55">
+<main class="app">
+  <div class="brand">DIGITAL CLOCK</div>
+  <div class="clock-card">
+    <div class="time" id="clock">00:00:00</div>
+    <div class="date" id="date">در حال بارگذاری تاریخ...</div>
+    <div class="status" id="status">ساعت زنده و آماده</div>
+  </div>
+
+  <section class="panel">
+    <label>انتخاب رنگ ساعت</label>
+    <div class="themes">
+      <button class="swatch" style="background:#42e8ff" onclick="setTheme('#42e8ff')"
+      aria-label="آبی"></button>
+      <button class="swatch" style="background:#63ffb0" onclick="setTheme('#63ffb0')"
+      aria-label="سبز"></button>
+      <button class="swatch" style="background:#ffbd59" onclick="setTheme('#ffbd59')"
+      aria-label="طلایی"></button>
+      <button class="swatch" style="background:#ff6db5" onclick="setTheme('#ff6db5')"
+      aria-label="صورتی"></button>
+      <button class="swatch" style="background:#b69aff" onclick="setTheme('#b69aff')"
+      aria-label="بنفش"></button>
+    </div>
+
+    <label for="format">قالب نمایش ساعت</label>
+    <select id="format" onchange="updateClock()">
+      <option value="24">۲۴ ساعته</option>
+      <option value="12">۱۲ ساعته</option>
+    </select>
+
+    <label for="size">اندازه اعداد ساعت</label>
+    <input id="size" type="range" min="36" max="100" value="70"
+    oninput="resizeClock(this.value)">
+
+    <label for="brightness">روشنایی صفحه</label>
+    <input id="brightness" type="range" min="40" max="100" value="100"
+    oninput="document.body.style.opacity=this.value/100">
+
+    <div class="buttons">
+      <button onclick="toggleFullscreen()">تمام صفحه</button>
+      <button onclick="toggleTheme()">حالت روشن / تاریک</button>
+      <button onclick="keepAwake()">روشن ماندن صفحه</button>
+      <button onclick="releaseWake()">آزاد کردن صفحه</button>
+    </div>
+  </section>
+
+  <footer>
+    ساعت دیجیتال شخصی شما<br>
+    برای نمایش تمام‌صفحه، دکمه مربوطه را لمس کنید.
+  </footer>
+</main>
+
+<script>
+const clock=document.getElementById('clock');
+const dateBox=document.getElementById('date');
+const statusBox=document.getElementById('status');
+let wakeLock=null;
+
+function toPersianDigits(s){
+ return String(s).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+}
+
+function updateClock(){
+ const now=new Date();
+ let h=now.getHours();
+ const format=document.getElementById('format').value;
+ if(format==='12') h=h%12||12;
+ const hh=String(h).padStart(2,'0');
+ const mm=String(now.getMinutes()).padStart(2,'0');
+ const ss=String(now.getSeconds()).padStart(2,'0');
+ clock.textContent=toPersianDigits(hh+':'+mm+':'+ss);
+
+ dateBox.textContent=now.toLocaleDateString('fa-IR',{
+  weekday:'long',year:'numeric',month:'long',day:'numeric'
+ });
+}
+function setTheme(color){
+ document.body.style.setProperty('--accent',color);
+ document.body.style.setProperty('--glow',color+'66');
+}
+function resizeClock(value){
+ clock.style.fontSize=value+'px';
+}
+function toggleTheme(){
+ document.body.classList.toggle('light');
+}
+async function toggleFullscreen(){
+ try{
+  if(!document.fullscreenElement){
+   await document.documentElement.requestFullscreen();
+  }else{
+   await document.exitFullscreen();
+  }
+ }catch(e){
+  statusBox.textContent='تمام‌صفحه در این مرورگر پشتیبانی نمی‌شود';
+ }
+}
+async function keepAwake(){
+ try{
+  if('wakeLock' in navigator){
+   wakeLock=await navigator.wakeLock.request('screen');
+   statusBox.textContent='درخواست روشن ماندن صفحه فعال شد';
+   wakeLock.addEventListener('release',()=>{
+    statusBox.textContent='قفل روشن ماندن صفحه آزاد شد';
+   });
+  }else{
+   statusBox.textContent='این مرورگر از این قابلیت پشتیبانی نمی‌کند';
+  }
+ }catch(e){
+  statusBox.textContent='برای فعال‌سازی، صفحه باید باز بماند';
+ }
+}
+async function releaseWake(){
+ if(wakeLock){
+  await wakeLock.release();
+  wakeLock=null;
+ }
+ statusBox.textContent='روشن ماندن اجباری صفحه غیرفعال شد';
+}
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='visible'&&wakeLock===null){
+  statusBox.textContent='ساعت فعال است';
+ }
+});
+updateClock();
+setInterval(updateClock,250);
+</script>
+</body>
+</html>
